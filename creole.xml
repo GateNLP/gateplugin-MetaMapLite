@@ -1,0 +1,17 @@
+<CREOLE-DIRECTORY>
+  <JAR SCAN="true">gateplugin-MetaMapLite.jar</JAR>
+  <JAR>public_mm_lite/lib/bioc-1.0.1.jar</JAR>
+  <JAR>public_mm_lite/lib/biolemmatizer-core-1.2.jar</JAR>
+  <JAR>public_mm_lite/lib/context-2012.jar</JAR>
+  <JAR>public_mm_lite/lib/log4j-api-2.1.jar</JAR>
+  <JAR>public_mm_lite/lib/log4j-core-2.1.jar</JAR>
+  <JAR>public_mm_lite/lib/lucene-analyzers-common-4.10.0.jar</JAR>
+  <JAR>public_mm_lite/lib/lucene-core-4.10.0.jar</JAR>
+  <JAR>public_mm_lite/lib/lucene-queryparser-4.10.0.jar</JAR>
+  <JAR>public_mm_lite/lib/metamaplite-1.0-SNAPSHOT.jar</JAR>
+  <JAR>public_mm_lite/lib/nlp-2.4.C.jar</JAR>
+  <JAR>public_mm_lite/lib/opencsv-2.3.jar</JAR>
+  <JAR>public_mm_lite/lib/opennlp-maxent-3.0.3.jar</JAR>
+  <JAR>public_mm_lite/lib/opennlp-tools-1.5.3.jar</JAR>
+</CREOLE-DIRECTORY>
+
