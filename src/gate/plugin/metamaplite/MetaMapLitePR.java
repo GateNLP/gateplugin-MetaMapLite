@@ -45,9 +45,7 @@ public class MetaMapLitePR extends AbstractLanguageAnalyser {
   private transient Logger logger = Logger.getLogger(MetaMapLitePR.class.getCanonicalName());
   
   MetaMapLite metaMapLiteInst = null;
-  
-  HashSet<String> stys = null;
-    
+      
   public Resource init() throws ResourceInstantiationException {
     Properties defProperties = MetaMapLite.getDefaultConfiguration();
     
@@ -69,11 +67,7 @@ public class MetaMapLitePR extends AbstractLanguageAnalyser {
         defProperties.setProperty(key.toString(), myProperties.getProperty(key.toString()));
       }
     }
-    
-    if(defProperties.containsKey("semantic.type.list")){
-      stys = new HashSet<String>(Arrays.asList(defProperties.get("semantic.type.list").toString().split(",")));
-    }
-    
+        
     try{
       metaMapLiteInst = new MetaMapLite(defProperties);
     } catch(IOException | ClassNotFoundException | IllegalAccessException | InstantiationException | NoSuchMethodException e){
@@ -104,21 +98,11 @@ public class MetaMapLitePR extends AbstractLanguageAnalyser {
         fm.put("STYS", ev.getConceptInfo().getSemanticTypeSet());
         fm.put("VOCABS", ev.getConceptInfo().getSourceSet());
         
-        //Can't seem to get MetaMapLite semantic types config option to work
-        //so I'll implement it myself
-        boolean typeOkay = true;
-        if(stys!=null){
-          HashSet<String> intersection = new HashSet<String>(ev.getConceptInfo().getSemanticTypeSet());
-          intersection.retainAll(stys);
-          if(intersection.size()==0) typeOkay=false;
-        }
-        if(typeOkay){
-          try {
-            document.getAnnotations(outputASName).add(start, end, outputType, fm);
-            if(disamb==DisambiguationMethod.FIRST) break;
-          } catch(Exception e){
-            java.util.logging.Logger.getLogger(MetaMapLitePR.class.getName()).log(Level.SEVERE, null, e);
-          }
+        try {
+          document.getAnnotations(outputASName).add(start, end, outputType, fm);
+          if(disamb==DisambiguationMethod.FIRST) break;
+        } catch(Exception e){
+          java.util.logging.Logger.getLogger(MetaMapLitePR.class.getName()).log(Level.SEVERE, null, e);
         }
       }
     }
