@@ -8,7 +8,7 @@ package gate.plugin.metamaplite;
 
 import java.util.Properties;
 import java.util.List;
-import java.util.ArrayList;
+import java.net.URL;
 
 import org.apache.log4j.Logger;
 
@@ -16,8 +16,6 @@ import gate.Resource;
 import gate.creole.ResourceInstantiationException;
 import gate.creole.ExecutionException;
 import gate.creole.AbstractLanguageAnalyser;
-import gate.Annotation;
-import gate.Utils;
 import gate.creole.metadata.CreoleParameter;
 import gate.creole.metadata.CreoleResource;
 import gate.creole.metadata.Optional;
@@ -30,6 +28,11 @@ import gov.nih.nlm.nls.metamap.document.FreeText;
 import gov.nih.nlm.nls.metamap.lite.types.Entity;
 import gov.nih.nlm.nls.metamap.lite.types.Ev;
 import gov.nih.nlm.nls.ner.MetaMapLite;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.logging.Level;
 
 /**
  * A GATE PR which annotates documents using MetaMapLite
@@ -43,18 +46,38 @@ public class MetaMapLitePR extends AbstractLanguageAnalyser {
   
   MetaMapLite metaMapLiteInst = null;
   
+  HashSet<String> stys = null;
+    
   public Resource init() throws ResourceInstantiationException {
-    Properties myProperties = MetaMapLite.getDefaultConfiguration();
-    myProperties.setProperty("opennlp.models.directory", "public_mm_lite/data/models");
-    MetaMapLite.expandModelsDir(myProperties);
-    myProperties.setProperty("metamaplite.index.directory",  "public_mm_lite/data/ivf/strict");
-    myProperties.setProperty("metamaplite.excluded.termsfile", "public_mm_lite/data/specialterms.txt");
-    MetaMapLite.expandIndexDir(myProperties);
+    Properties defProperties = MetaMapLite.getDefaultConfiguration();
+    
+    defProperties.setProperty("opennlp.models.directory", "public_mm_lite/data/models");
+    MetaMapLite.expandModelsDir(defProperties);
+    defProperties.setProperty("metamaplite.index.directory",  "public_mm_lite/data/ivf/strict");
+    defProperties.setProperty("metamaplite.excluded.termsfile", "public_mm_lite/data/specialterms.txt");
+    MetaMapLite.expandIndexDir(defProperties);
   
+    if(confUrl!=null){
+      Properties myProperties = new Properties();
+      try {
+        InputStream input = confUrl.openStream();
+        myProperties.load(input);
+      } catch (IOException e) {
+        java.util.logging.Logger.getLogger(MetaMapLitePR.class.getName()).log(Level.SEVERE, null, e);
+      }
+      for(Object key : myProperties.keySet()){
+        defProperties.setProperty(key.toString(), myProperties.getProperty(key.toString()));
+      }
+    }
+    
+    if(defProperties.containsKey("semantic.type.list")){
+      stys = new HashSet<String>(Arrays.asList(defProperties.get("semantic.type.list").toString().split(",")));
+    }
+    
     try{
-      metaMapLiteInst = new MetaMapLite(myProperties);
-    } catch(Exception e){
-      e.printStackTrace();
+      metaMapLiteInst = new MetaMapLite(defProperties);
+    } catch(IOException | ClassNotFoundException | IllegalAccessException | InstantiationException | NoSuchMethodException e){
+      java.util.logging.Logger.getLogger(MetaMapLitePR.class.getName()).log(Level.SEVERE, null, e);
     }
     return this;
   }
@@ -62,15 +85,13 @@ public class MetaMapLitePR extends AbstractLanguageAnalyser {
   @Override
   public void execute() throws ExecutionException {
     String docContent = document.getContent().toString();
-    List<BioCDocument> documentList = new ArrayList<BioCDocument>();
     BioCDocument bcdocument = FreeText.instantiateBioCDocument(docContent);
-    documentList.add(bcdocument);
         
     List<Entity> entityList = null;
     try {
-      entityList = metaMapLiteInst.processDocumentList(documentList);
+      entityList = metaMapLiteInst.processDocument(bcdocument);
     } catch (Exception e){
-      e.printStackTrace();
+      java.util.logging.Logger.getLogger(MetaMapLitePR.class.getName()).log(Level.SEVERE, null, e);
     }
     for (Entity entity: entityList) {
       Long start = (new Integer(entity.getOffset())).longValue();
@@ -82,10 +103,22 @@ public class MetaMapLitePR extends AbstractLanguageAnalyser {
         fm.put("PREF", ev.getConceptInfo().getPreferredName());
         fm.put("STYS", ev.getConceptInfo().getSemanticTypeSet());
         fm.put("VOCABS", ev.getConceptInfo().getSourceSet());
-        try {
-          document.getAnnotations(outputASName).add(start, end, outputType, fm);
-        } catch(Exception e){
-          e.printStackTrace();
+        
+        //Can't seem to get MetaMapLite semantic types config option to work
+        //so I'll implement it myself
+        boolean typeOkay = true;
+        if(stys!=null){
+          HashSet<String> intersection = new HashSet<String>(ev.getConceptInfo().getSemanticTypeSet());
+          intersection.retainAll(stys);
+          if(intersection.size()==0) typeOkay=false;
+        }
+        if(typeOkay){
+          try {
+            document.getAnnotations(outputASName).add(start, end, outputType, fm);
+            if(disamb==DisambiguationMethod.FIRST) break;
+          } catch(Exception e){
+            java.util.logging.Logger.getLogger(MetaMapLitePR.class.getName()).log(Level.SEVERE, null, e);
+          }
         }
       }
     }
@@ -119,4 +152,27 @@ public class MetaMapLitePR extends AbstractLanguageAnalyser {
   public String getOutputAnnotationType() {
     return outputType;
   }
+  
+  protected URL confUrl = null;
+  @Optional
+  @CreoleParameter(comment = "Location of an optional MetaMapLite configuration file.")
+  public void setConfUrl(URL url) {
+    confUrl = url;
+  }
+  public URL getConfUrl() {
+    return confUrl;
+  }
+  
+  public enum DisambiguationMethod{NONE, FIRST;}
+  protected DisambiguationMethod disamb = DisambiguationMethod.NONE;
+  @RunTime
+  @CreoleParameter(comment = "MetaMapLite provides no disambiguation. Rudimentary disambiguation options are available here.",
+          defaultValue = "NONE")
+  public void setDisamb(DisambiguationMethod dis) {
+    disamb = dis;
+  }
+  public DisambiguationMethod getDisamb() {
+    return disamb;
+  }
+  
 }
