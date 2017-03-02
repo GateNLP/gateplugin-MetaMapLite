@@ -24,10 +24,13 @@ import gate.FeatureMap;
 
 import bioc.BioCDocument;
 import gate.Factory;
+import gate.Gate;
+import gate.creole.ResourceData;
 import gov.nih.nlm.nls.metamap.document.FreeText;
 import gov.nih.nlm.nls.metamap.lite.types.Entity;
 import gov.nih.nlm.nls.metamap.lite.types.Ev;
 import gov.nih.nlm.nls.ner.MetaMapLite;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
@@ -48,11 +51,14 @@ public class MetaMapLitePR extends AbstractLanguageAnalyser {
       
   public Resource init() throws ResourceInstantiationException {
     Properties defProperties = MetaMapLite.getDefaultConfiguration();
+    ResourceData myResourceData = Gate.getCreoleRegister().get(this.getClass().getName());
+    URL creoleXml = myResourceData.getXmlFileUrl();
+    File prDirectory = gate.util.Files.fileFromURL(creoleXml).getParentFile();
     
-    defProperties.setProperty("opennlp.models.directory", "public_mm_lite/data/models");
+    defProperties.setProperty("opennlp.models.directory", prDirectory.getAbsolutePath() + "/public_mm_lite/data/models");
     MetaMapLite.expandModelsDir(defProperties);
-    defProperties.setProperty("metamaplite.index.directory",  "public_mm_lite/data/ivf/strict");
-    defProperties.setProperty("metamaplite.excluded.termsfile", "public_mm_lite/data/specialterms.txt");
+    defProperties.setProperty("metamaplite.index.directory", prDirectory.getAbsolutePath() + "/public_mm_lite/data/ivf/strict");
+    defProperties.setProperty("metamaplite.excluded.termsfile", prDirectory.getAbsolutePath() + "/public_mm_lite/data/specialterms.txt");
     MetaMapLite.expandIndexDir(defProperties);
   
     if(confUrl!=null){
