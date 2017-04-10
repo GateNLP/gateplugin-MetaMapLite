@@ -23,6 +23,8 @@ import gate.creole.metadata.RunTime;
 import gate.FeatureMap;
 
 import bioc.BioCDocument;
+import gate.Annotation;
+import gate.AnnotationSet;
 import gate.Factory;
 import gate.Gate;
 import gate.creole.ResourceData;
@@ -33,8 +35,7 @@ import gov.nih.nlm.nls.ner.MetaMapLite;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Arrays;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.logging.Level;
 
 /**
@@ -84,63 +85,96 @@ public class MetaMapLitePR extends AbstractLanguageAnalyser {
 
   @Override
   public void execute() throws ExecutionException {
-    String docContent = document.getContent().toString();
-    BioCDocument bcdocument = FreeText.instantiateBioCDocument(docContent);
-        
-    List<Entity> entityList = null;
-    try {
-      entityList = metaMapLiteInst.processDocument(bcdocument);
-    } catch (Exception e){
-      java.util.logging.Logger.getLogger(MetaMapLitePR.class.getName()).log(Level.SEVERE, null, e);
-    }
-    for (Entity entity: entityList) {
-      Long start = (new Integer(entity.getOffset())).longValue();
-      Long end = (new Integer(entity.getOffset() + entity.getLength())).longValue();
-      for (Ev ev: entity.getEvSet()) {
-        FeatureMap fm = Factory.newFeatureMap();
-        fm.put("CUI", ev.getConceptInfo().getCUI());
-        fm.put("score", ev.getScore());
-        fm.put("PREF", ev.getConceptInfo().getPreferredName());
-        fm.put("STYS", ev.getConceptInfo().getSemanticTypeSet());
-        fm.put("VOCABS", ev.getConceptInfo().getSourceSet());
-        
-        try {
-          document.getAnnotations(outputASName).add(start, end, outputType, fm);
-          if(disamb==DisambiguationMethod.FIRST) break;
-        } catch(Exception e){
-          java.util.logging.Logger.getLogger(MetaMapLitePR.class.getName()).log(Level.SEVERE, null, e);
+    //We're going to split the document into sentences ourselves because
+    //the more text we give to MetaMapLite the more likely it is that
+    //the offsets will come back wrong.
+    AnnotationSet sentences = document.getAnnotations(sentenceASName).get(sentenceType);
+    if(!(sentences.size()>0)) System.out.println("MetaMapLite PR failed to find any sentences to annotate!");
+    for(Annotation sentence : sentences){
+      long sentenceoffset = sentence.getStartNode().getOffset();
+      String docContent = gate.Utils.stringFor(document, sentence);
+      
+      //String docContent = document.getContent().toString();
+      BioCDocument bcdocument = FreeText.instantiateBioCDocument(docContent);
+      List<Entity> entityList = null;
+      try {
+        entityList = metaMapLiteInst.processDocument(bcdocument);
+      } catch (Exception e){
+        java.util.logging.Logger.getLogger(MetaMapLitePR.class.getName()).log(Level.SEVERE, null, e);
+      }
+      for (Entity entity: entityList) {
+        Long gateoffset = (new Integer(entity.getOffset())).longValue();
+        Long start = sentenceoffset + gateoffset;
+        Long end = start + (new Integer(entity.getLength())).longValue();
+        for (Ev ev: entity.getEvSet()) {
+          FeatureMap fm = Factory.newFeatureMap();
+          fm.put("CUI", ev.getConceptInfo().getCUI());
+          fm.put("score", ev.getScore());
+          fm.put("PREF", ev.getConceptInfo().getPreferredName());
+          fm.put("STYS", ev.getConceptInfo().getSemanticTypeSet());
+          fm.put("VOCABS", ev.getConceptInfo().getSourceSet());
+
+          try {
+            document.getAnnotations(outputASName).add(start, end, outputType, fm);
+            if(disamb==DisambiguationMethod.FIRST) break;
+          } catch(Exception e){
+            java.util.logging.Logger.getLogger(MetaMapLitePR.class.getName()).log(Level.SEVERE, null, e);
+          }
         }
       }
     }
   }
   
-  
   protected String outputASName = "";
   @RunTime
-  @Optional
   @CreoleParameter(
           comment = "Output annotation set, default is MetaMapLite",
           defaultValue = "MetaMapLite")
-  public void setOutputAnnotationSet(String oas) {
+  public void setOutputASName(String oas) {
     outputASName = oas;
   }
 
-  public String getOutputAnnotationSet() {
+  public String getOutputASName() {
     return outputASName;
   }
   
   protected String outputType = "";
   @RunTime
-  @Optional
   @CreoleParameter(
           comment = "The output annotation type, default is 'Mention'",
           defaultValue = "Mention")
-  public void setOutputAnnotationType(String val) {
+  public void setOutputType(String val) {
     this.outputType = val;
   }
 
-  public String getOutputAnnotationType() {
+  public String getOutputType() {
     return outputType;
+  }
+  
+  protected String sentenceASName = "";
+  @RunTime
+  @CreoleParameter(
+          comment = "There need to be sentences. What annotation set are they in?",
+          defaultValue = "")
+  public void setSentenceASName(String sas) {
+    sentenceASName = sas;
+  }
+
+  public String getSentenceASName() {
+    return sentenceASName;
+  }
+  
+  protected String sentenceType = "";
+  @RunTime
+  @CreoleParameter(
+          comment = "The type of the annotation to use as sentence.",
+          defaultValue = "Sentence")
+  public void setSentenceType(String sat) {
+    this.sentenceType = sat;
+  }
+
+  public String getSentenceType() {
+    return sentenceType;
   }
   
   protected URL confUrl = null;
@@ -153,11 +187,11 @@ public class MetaMapLitePR extends AbstractLanguageAnalyser {
     return confUrl;
   }
   
-  public enum DisambiguationMethod{NONE, FIRST;}
-  protected DisambiguationMethod disamb = DisambiguationMethod.NONE;
+  public enum DisambiguationMethod{ALL, FIRST;}
+  protected DisambiguationMethod disamb = DisambiguationMethod.ALL;
   @RunTime
-  @CreoleParameter(comment = "MetaMapLite provides no disambiguation. Rudimentary disambiguation options are available here.",
-          defaultValue = "NONE")
+  @CreoleParameter(comment = "MetaMapLite provides no disambiguation. Rudimentary options are available here.",
+          defaultValue = "ALL")
   public void setDisamb(DisambiguationMethod dis) {
     disamb = dis;
   }
