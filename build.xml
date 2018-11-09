@@ -2,6 +2,14 @@
     <property name="build.sysclasspath" value="ignore"/>
 
     <property file="build.properties"/>
+    <property environment="env" />
+    <condition property="gate.home" value="${env.GATE_HOME}">
+      <isset property="env.GATE_HOME"/>
+    </condition>
+    <condition property="mm.home" value="${env.MM_LITE_HOME}">
+      <isset property="env.MM_LITE_HOME"/>
+    </condition>
+    <property name="mm.home" location="public_mm_lite"/>
 
     <property name="gate.lib" location="${gate.home}/lib"/>
     <property name="src.dir" location="src"/>
@@ -18,10 +26,11 @@
             <include name="**/*.jar"/>
             <include name="**/*.zip"/>
         </fileset>
-        <fileset dir="public_mm_lite/lib">
+        <fileset dir="${mm.home}/lib">
             <include name="**/*.jar"/>
             <include name="**/*.zip"/>
         </fileset>
+        <pathelement location="${mm.home}/target/metamaplite-3.6.2rc2.jar"/>
     </path>
 
     <path id="runtime.classpath">
@@ -31,10 +40,11 @@
             <include name="**/*.jar"/>
             <include name="**/*.zip"/>
         </fileset>
-        <fileset dir="public_mm_lite/lib">
+        <fileset dir="${mm.home}/lib">
             <include name="**/*.jar"/>
             <include name="**/*.zip"/>
         </fileset>
+        <pathelement location="${mm.home}/target/metamaplite-3.6.2rc2.jar"/>
     </path>
 
     <path id="classpathx">
