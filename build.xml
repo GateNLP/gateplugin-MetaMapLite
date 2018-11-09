@@ -1,4 +1,4 @@
-<project name="gateplugin-MetaMapLite" basedir=".">
+<project name="gateplugin-MetaMapLite" basedir="." default="jar">
     <property name="build.sysclasspath" value="ignore"/>
 
     <property file="build.properties"/>
